@@ -1,0 +1,104 @@
+import warnings
+warnings.filterwarnings('ignore')
+
+import numpy as np
+import pandas as pd
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+from surprise import accuracy
+
+# class is used to parse a file containing ratings, data should be in structure - user ; item ; rating
+from surprise.reader import Reader
+
+# class for loading datasets
+from surprise.dataset import Dataset
+
+# for model tuning model hyper-parameters
+from surprise.model_selection import GridSearchCV
+
+# for splitting the rating data in train and test dataset
+from surprise.model_selection import train_test_split
+
+# for implementing similarity based recommendation system
+from surprise.prediction_algorithms.knns import KNNBasic
+
+# for implementing matrix factorization based recommendation system
+from surprise.prediction_algorithms.matrix_factorization import SVD
+
+from collections import defaultdict
+
+# for implementing cross validation
+from surprise.model_selection import KFold
+def reduce_mem_usage(df, verbose=True):
+    numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+    start_mem = df.memory_usage().sum() / 1024**2
+    for col in df.columns:
+        col_type = df[col].dtypes
+        if col_type in numerics:
+            c_min = df[col].min()
+            c_max = df[col].max()
+            if str(col_type)[:3] == 'int':
+                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                    df[col] = df[col].astype(np.int8)
+                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                    df[col] = df[col].astype(np.int16)
+                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                    df[col] = df[col].astype(np.int32)
+                elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
+                    df[col] = df[col].astype(np.int64)
+            else:
+                if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+                    df[col] = df[col].astype(np.float16)
+                elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                    df[col] = df[col].astype(np.float32)
+                else:
+                    df[col] = df[col].astype(np.float64)
+
+    end_mem = df.memory_usage().sum() / 1024**2
+    print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
+    print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
+
+    return df
+rating = pd.read_csv('../input/the-movies-dataset/ratings.csv')
+rating = reduce_mem_usage(rating)
+
+# unfortunetely, reduce mem usage is still large for kaggle, for this example, I will change the rating to rating_small
+rating = pd.read_csv('../input/the-movies-dataset/ratings_small.csv')
+rating.info()
+rating = rating.drop(['timestamp'], axis=1)
+rating.head() 
+plt.figure(figsize = (12, 4))
+
+
+sns.countplot(x="rating" ,data=rating)
+
+plt.tick_params(labelsize = 10)
+plt.title("Distribution of Ratings ", fontsize = 10)
+plt.xlabel("Ratings", fontsize = 10)
+plt.ylabel("Number of Ratings", fontsize = 10)
+plt.show()
+rating['userId'].nunique() 
+rating['movieId'].nunique()
+rating.groupby(['userId', 'movieId']).count()
+rating['movieId'].value_counts()
+plt.figure(figsize=(7,7))
+
+rating[rating['movieId'] == 356]['rating'].value_counts().plot(kind='bar')
+
+plt.xlabel('Rating')
+
+plt.ylabel('Count')
+
+plt.show()
+rating['userId'].value_counts()
+count_interactions = rating.groupby('userId').count()['movieId']
+count_interactions
+plt.figure(figsize=(15,7))
+sns.histplot(count_interactions)
+
+plt.xlabel('Number of Interactions by Users')
+
+plt.show()
