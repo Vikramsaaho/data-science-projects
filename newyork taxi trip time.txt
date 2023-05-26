@@ -1,0 +1,67 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import missingno as msgno
+
+import warnings
+warnings.filterwarnings('ignore')
+
+sns.set()
+df = pd.read_csv('../input/taxi-trip-data-nyc/taxi_tripdata.csv')
+df.head()
+df.shape
+df.describe()
+df.dtypes
+df = df.drop(['ehail_fee', 'VendorID', 'trip_type', 'congestion_surcharge'], axis= 1)
+len(df[df['total_amount'] <= 0])
+df = df[df['total_amount'] > 0]
+len(df[df['fare_amount'] <= 0])
+len(df[df['trip_distance'] <= 0])
+df.groupby('RatecodeID')['trip_distance'].median()
+df.loc[(df['trip_distance'] <= 0) & (df['RatecodeID'] == 1.0)] = 2.8
+df.loc[(df['trip_distance'] <= 0) & (df['RatecodeID'] == 2.0)] = 20
+df.loc[(df['trip_distance'] <= 0) & (df['RatecodeID'] == 3.0)] = 24
+df.loc[(df['trip_distance'] <= 0) & (df['RatecodeID'] == 4.0)] = 12
+df.loc[(df['trip_distance'] <= 0) & (df['RatecodeID'] == 5.0)] = 3.1
+for i in df.columns[[0, 1]]:
+    df[i] = pd.to_datetime(df[i])
+timedeltas = df['lpep_dropoff_datetime'] - df['lpep_pickup_datetime']
+trip_duration = []
+for i in timedeltas :
+    trip_duration.append(i.total_seconds() / 60)
+
+df['trip_duration'] = trip_duration
+df['trip_duration'] = df['trip_duration'].round(2)
+df = df[df['trip_duration'] > 1]
+df.shape
+df['store_and_fwd_flag'].value_counts()
+df['store_and_fwd_flag'].fillna('N', inplace= True)
+df['payment_type'].value_counts(normalize= True)
+df.groupby('payment_type')['total_amount'].quantile(0.95)
+df.loc[(df['payment_type'].isna()) & (df['total_amount'] > 50), 'payment_type'] = 1.0
+df.loc[(df['payment_type'].isna()) & (df['total_amount'] <= 50), 'payment_type'] = 2.0
+df['RatecodeID'].value_counts()
+df.groupby('RatecodeID')['total_amount'].quantile(0.95)
+df.loc[(df['RatecodeID'].isna()) & (df['total_amount'] >= 184), 'RatecodeID'] = 4.0
+df.loc[(df['RatecodeID'].isna()) & (138 <= df['total_amount']) & (df['total_amount']< 184), 'RatecodeID'] = 3.0
+df.loc[(df['RatecodeID'].isna()) & (79 <= df['total_amount']) & (df['total_amount']< 138), 'RatecodeID'] = 2.0
+df.loc[(df['RatecodeID'].isna()) & (0 <= df['total_amount']) & (df['total_amount']< 79), 'RatecodeID'] = 1.0
+df['passenger_count'].value_counts(normalize= True)
+df.loc[df['passenger_count']==0, 'passenger_count'] = 1.0
+df.loc[df['passenger_count']==7, 'passenger_count'] = 1.0
+df.loc[df['passenger_count']==32, 'passenger_count'] = 1.0
+df.loc[df['passenger_count'].isna(), 'passenger_count'] = 1.0
+df.isna().sum()
+df.head()
+df.shape
+plt.figure(figsize= (18, 10))
+sns.heatmap(df.corr(), annot= True);
+df['day_of_week'] = df['lpep_pickup_datetime'].dt.day_name()
+plt.figure(figsize= (18, 7))
+sns.countplot(y= 'day_of_week', data= df)
+plt.ylabel('');
+plt.figure(figsize= (18, 7))
+sns.countplot(x= df['lpep_pickup_datetime'].dt.hour, data= df, color= 'goldenrod')
+plt.ylabel('')
+plt.xlabel('Hour of Day');
